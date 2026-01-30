@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نماء | المنصة المالية الذكية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200..900&family=Plus+Jakarta+Sans:wght@200..800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+    <style>
+        :root {
+            --taibah-blue: #00509d;
+            --taibah-teal: #00a896;
+            --taibah-light-blue: #3b82f6;
+            --primary-dark: #002e63;
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #fdfdfd;
+            color: #1e293b;
+            scroll-behavior: smooth;
+        }
+        .font-brand {
+            font-family: 'Cairo', sans-serif;
+            font-weight: 900;
+        }
+        .gradient-taibah {
+            background: linear-gradient(135deg, #00509d 0%, #00a896 100%);
+        }
+        .otp-input:focus {
+            border-color: #00509d;
+            box-shadow: 0 0 0 4px rgba(0, 80, 157, 0.1);
+        }
+        /* Hide Recaptcha Badge */
+        .grecaptcha-badge { visibility: hidden; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <!-- Container for Firebase Recaptcha -->
+    <div id="recaptcha-container"></div>
+</body>
+</html>
