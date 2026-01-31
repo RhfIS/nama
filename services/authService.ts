@@ -1,29 +1,32 @@
+// src/services/authService.ts
 
-// إعداد Firebase
-// ملاحظة: وضعنا مفاتيح تجريبية (Placeholder). 
-// في بيئة الإنتاج، يجب استبدالها بمفاتيح حقيقية من Firebase Console.
+
+// لا نحتاج لـ import هنا لأننا نعتمد على المكتبات الموجودة في index.html
+// هذا يمنع تضارب الأكواد ويضمن عمل الموقع بسرعة
+
 const firebaseConfig = {
-  apiKey: "AIzaSyAs-DEMO-KEY",
-  authDomain: "namaa-app.firebaseapp.com",
-  projectId: "namaa-app",
-  storageBucket: "namaa-app.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+  apiKey: "AIzaSyCktLGTaXFdbnqEzX0_lzEa_YIEfT2tTKc",
+  authDomain: "namaapp-e6178.firebaseapp.com",
+  projectId: "namaapp-e6178",
+  storageBucket: "namaapp-e6178.firebasestorage.app",
+  messagingSenderId: "372537900190",
+  appId: "1:372537900190:web:846e0ba706cf6c0c2bcf8f"
 };
 
-// فحص ما إذا كنا نستخدم مفاتيح تجريبية لتفعيل "وضع المحاكاة"
-const isDemoConfig = firebaseConfig.apiKey === "AIzaSyAs-DEMO-KEY";
-
-// تهيئة Firebase إذا لم يكن مهيئاً
-if (!(window as any).firebase.apps.length) {
+// تهيئة Firebase بأمان (تستخدم النسخة الموجودة في المتصفح)
+if ((window as any).firebase && !(window as any).firebase.apps.length) {
   (window as any).firebase.initializeApp(firebaseConfig);
 }
 
-const auth = (window as any).firebase.auth();
+// تعريف المتغير auth للاستخدام في باقي الملف
+const auth = (window as any).firebase ? (window as any).firebase.auth() : null;
+
+if (auth) {
+    auth.languageCode = 'ar'; // لجعل رسالة SMS تصل باللغة العربية
+}
 
 export const setupRecaptcha = () => {
-  // تجنب إعادة التهيئة إذا كانت موجودة مسبقاً
-  if ((window as any).recaptchaVerifier) return;
+  if (!(window as any).firebase || (window as any).recaptchaVerifier) return;
 
   const container = document.getElementById('recaptcha-container');
   if (!container) return;
@@ -35,9 +38,11 @@ export const setupRecaptcha = () => {
         console.log("Recaptcha verified");
       },
       'expired-callback': () => {
-        (window as any).recaptchaVerifier.render().then((widgetId: any) => {
-          (window as any).firebase.auth().RecaptchaVerifier.reset(widgetId);
-        });
+        // إعادة تعيين Recaptcha إذا انتهت صلاحيته
+        if((window as any).recaptchaVerifier) {
+            (window as any).recaptchaVerifier.clear();
+            (window as any).recaptchaVerifier = null;
+        }
       }
     });
   } catch (err) {
@@ -46,46 +51,35 @@ export const setupRecaptcha = () => {
 };
 
 export const sendOTP = async (phoneNumber: string) => {
-  if (isDemoConfig) {
-    console.warn("نظام نماء: يتم استخدام وضع المحاكاة لأن مفاتيح Firebase تجريبية.");
-    // محاكاة تأخير الشبكة
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return true;
+  if (!auth) {
+      console.error("Firebase not initialized");
+      return false;
   }
 
   setupRecaptcha();
   const appVerifier = (window as any).recaptchaVerifier;
   
   try {
+    // إرسال رسالة حقيقية
     const confirmationResult = await auth.signInWithPhoneNumber(phoneNumber, appVerifier);
     (window as any).confirmationResult = confirmationResult;
     return true;
   } catch (error: any) {
-    console.error("Firebase Auth Error:", error.code, error.message);
-    // إذا حدث خطأ داخلي في البيئة التجريبية، نفعل المحاكاة تلقائياً لعدم تعطيل المستخدم
-    if (error.code === 'auth/internal-error' || error.code === 'auth/network-request-failed') {
-      console.warn("تحويل تلقائي لوضع المحاكاة بسبب قيود المتصفح أو المفاتيح.");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return true;
+    console.error("Firebase Auth Error:", error);
+    
+    // إذا ظهر خطأ، نعيد تهيئة Recaptcha للمحاولة القادمة
+    if ((window as any).recaptchaVerifier) {
+      (window as any).recaptchaVerifier.clear();
+      (window as any).recaptchaVerifier = null;
     }
-    throw error;
+    
+    throw new Error(getArabicErrorMessage(error.code));
   }
 };
 
 export const verifyOTP = async (otp: string) => {
-  if (isDemoConfig || !(window as any).confirmationResult) {
-    // في وضع المحاكاة، نقبل أي رمز أو نستخدم '123456' كرمز ماستر
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    if (otp === '123456' || isDemoConfig) {
-      const mockUser = {
-        uid: "demo-user-123",
-        phoneNumber: "+966500000000",
-        getIdToken: async () => "demo-jwt-token"
-      };
-      setCookie('auth_token', "demo-jwt-token", 7);
-      return mockUser;
-    }
-    throw new Error("رمز التحقق غير صحيح");
+  if (!(window as any).confirmationResult) {
+    throw new Error("يرجى طلب رمز التحقق أولاً");
   }
 
   try {
@@ -93,27 +87,17 @@ export const verifyOTP = async (otp: string) => {
     const idToken = await result.user.getIdToken();
     setCookie('auth_token', idToken, 7);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error verifying OTP:", error);
-    throw error;
+    throw new Error("رمز التحقق غير صحيح");
   }
 };
 
+// دوال مساعدة للكوكيز وإدارة الجلسة
 export const setCookie = (name: string, value: string, days: number) => {
   const expires = new Date();
   expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;Secure;SameSite=Strict`;
-};
-
-export const getCookie = (name: string) => {
-  const nameEQ = name + "=";
-  const ca = document.cookie.split(';');
-  for(let i=0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-  }
-  return null;
 };
 
 export const deleteCookie = (name: string) => {
@@ -121,21 +105,26 @@ export const deleteCookie = (name: string) => {
 };
 
 export const checkAuthSession = async () => {
-  const token = getCookie('auth_token');
-  if (!token) return null;
-  
-  if (token === "demo-jwt-token") {
-    return { uid: "demo-user-123", phoneNumber: "+966500000000" };
-  }
-
-  try {
-    return new Promise((resolve) => {
-      const unsubscribe = auth.onAuthStateChanged((user: any) => {
-        unsubscribe();
-        resolve(user);
-      });
+  if (!auth) return null;
+  // فحص حالة المستخدم الحالية من Firebase مباشرة
+  return new Promise((resolve) => {
+    const unsubscribe = auth.onAuthStateChanged((user: any) => {
+      unsubscribe();
+      resolve(user);
     });
-  } catch {
-    return null;
+  });
+};
+
+// دالة لترجمة أخطاء Firebase للعربية
+const getArabicErrorMessage = (errorCode: string) => {
+  switch (errorCode) {
+    case 'auth/invalid-phone-number':
+      return 'رقم الهاتف غير صحيح.';
+    case 'auth/quota-exceeded':
+      return 'تجاوزت الحد المسموح من الرسائل لهذا اليوم.';
+    case 'auth/too-many-requests':
+      return 'محاولات كثيرة جداً، يرجى الانتظار قليلاً.';
+    default:
+      return 'حدث خطأ في الإرسال، تأكد من الاتصال بالإنترنت.';
   }
 };
